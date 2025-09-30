@@ -1,21 +1,17 @@
-import dotenv from "dotenv";
-dotenv.config();
-
-console.log("Secret: ", process.env.JWT_SECRET);
 import express from "express";
 import cors from "cors";
 import sequelize from "./config/db.js";
 import routes from "./routes/routes.js";
+import { ORIGIN, PORT } from "./index.js";
+import { errorHandler } from "./middlewares/errorHandler.middleware.js";
 
 const app = express();
 const corsOptions = {
-  origin: "http://localhost:8080"
+  origin: ORIGIN
 };
 
 app.use(cors(corsOptions));
 app.use(express.json());
-
-const PORT = process.env.PORT || 8080;
 
 sequelize
   .sync({ force: false })
@@ -26,12 +22,14 @@ sequelize
     console.log("Error coccured connecting db: ", err);
   });
 
-routes(app);
-
 app.get("/", (req, res) => {
   console.log("Welcome Home");
   res.send("Welcome Home");
 });
+
+routes(app);
+
+app.use(errorHandler);
 
 app.listen(PORT, (err) => {
   if (err) {

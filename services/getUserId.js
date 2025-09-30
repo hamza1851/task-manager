@@ -1,7 +1,8 @@
 import jwt from "jsonwebtoken";
+import { JWT_SECRET } from "../index.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "e6e4ba6325c11b5a98a600b0d588fea9";
 
+// This function extracts and verifies the JWT token from the request headers
 export const getUserId = (req) => {
   const result = {
     userId: "",

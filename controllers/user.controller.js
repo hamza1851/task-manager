@@ -1,21 +1,22 @@
-import dotenv from "dotenv";
-dotenv.config();
-
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import User from "../models/user.model.js";
+import { User } from "../models/index.js";
+import { JWT_SECRET } from "../index.js";
+import { getUserId } from "../services/getUserId.js";
 
-const JWT_SECRET = process.env.JWT_SECRET;
-
-export const signup = async (req, res) => {
+export const signup = async (req, res, next) => {
   const { username, email, password } = req.body;
   if (!username || !email || !password) {
-    return res.status(400).json({ message: "All fields are required." });
+    const err = new Error("All fields are required.");
+    err.statusCode = 400
+    throw err
   }
   try {
     const existingUser = await User.findOne({ where: { email } });
     if (existingUser) {
-      return res.status(409).json({ message: "Email already in use." });
+      const err = new Error("Email already in use.");
+      err.statusCode = 400
+      throw err
     }
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await User.create({
@@ -24,35 +25,43 @@ export const signup = async (req, res) => {
       password: hashedPassword
     });
 
-
     res.status(201).json({
       message: "User created successfully.",
       user: { id: user.id, username: user.username, email: user.email }
     });
   } catch (err) {
-    res.status(500).json({ message: "Server error.", error: err.message });
+    next(err)
   }
 };
 
-export const login = async (req, res) => {
+export const login = async (req, res, next) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
-    return res.status(400).json({ message: "All fields are required" });
+    const err = new Error("All fields are required")
+    err.statusCode = 400
+    throw err
   }
 
   try {
     const user = await User.findOne({ where: { email } });
 
     if (!user) {
-      return res.status(401).json({ message: "Invalid email" });
+      const err = new Error("Invalid email")
+      err.statusCode = 401
+      throw err
     }
 
+    // Compare password to check if it matches
     const isPasswordValid = await bcrypt.compare(password, user.password);
+
     if (!isPasswordValid) {
-      return res.status(401).json({ message: "Invalid password" });
+      const err = new Error("Invalid password")
+      err.statusCode = 401
+      throw err
     }
 
+    // generate JWT token
     const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: "1h" });
 
     return res.status(200).json({
@@ -65,9 +74,7 @@ export const login = async (req, res) => {
       token
     });
   } catch (err) {
-    return res
-      .status(500)
-      .json({ message: "Server error", error: err.message });
+    next(err)
   }
 };
 
@@ -75,67 +82,69 @@ export const logout = (req, res) => {
   return res.status(200).json({ message: "Logged out successfully" });
 };
 
-export const updateProfile = async (req, res) => {
+export const updateProfile = async (req, res, next) => {
   const { username, email, password } = req.body;
+  const userId = getUserId(req).userId;
   try {
+    // get the user details
     const user = await User.findOne({
       where: {
-        id: req.user.id
+        id: userId
       }
     });
     if (!user) {
-      return res.status(404).json({
-        message: "User details not found"
-      });
+      const err = new Error("User details not found")
+      err.statusCode = 404
+      throw err
     }
 
+    // hashed password
+    const hashedPass = bcrypt.hash(password, 10);
+    // updated user details
     const updatedUser = {
       username: username ?? user.username,
       email: email ?? user.email,
-      password: password ?? user.password
+      password: hashedPass ?? user.password
     };
 
+    // update the user details in DB
+    // this function return an array with first elem showing number of records updated
     const isUserUpdated = await User.update(updatedUser, {
       where: {
-        id: req.params.id
+        id: userId
       }
     });
 
     if (!isUserUpdated[0]) {
-      return res.status(500).json({
-        message: "Unable to update user profile"
-      });
+      const err = new Error("Unable to update user profile")
+      err.statusCode = 500
+      throw err
     }
 
     res.status(200).json({
       message: "Successfully updated the profile"
     });
   } catch (error) {
-    return res.status(500).json({
-      type: "Server error",
-      message: error.message
-    });
+    next(error)
   }
 };
 
-export const getProfile = async (req, res) => {
+export const getProfile = async (req, res, next) => {
+  const userId = getUserId(req).userId;
   try {
     const user = await User.findOne({
       where: {
-        id: req.user.id
+        id: userId
       }
     });
     if (!user) {
-      return res.status(404).json({
-        message: "User data not found"
-      });
+      const err = new Error("User data not found")
+      err.statusCode = 404
+      next(err)
     }
 
     res.status(200).json(user);
   } catch (error) {
-    return res.status(500).json({
-      typeof: "Server error",
-      message: error.message
-    });
+    next(error)
   }
 };

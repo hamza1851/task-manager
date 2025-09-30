@@ -1,6 +1,5 @@
 import { DataTypes } from "sequelize";
 import sequelize from "../config/db.js";
-import User from "./user.model.js";
 
 const Task = sequelize.define(
   "tasks",
@@ -20,12 +19,9 @@ const Task = sequelize.define(
   },
   {
     timestamps: true,
-    createdAt: "created_at",
+    createdAt: "created_at", // sequelize uses camelCase by default, so snake_case needs to be specified
     updatedAt: "updated_at"
   }
 );
-
-User.hasMany(Task, { foreignKey: "userId" });
-Task.belongsTo(User, { foreignKey: "userId" });
 
 export default Task;

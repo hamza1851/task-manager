@@ -1,16 +1,16 @@
-import sequelize from "../config/db.js";
 import { Op } from "sequelize";
-import Task from "../models/task.model.js";
+import { Task } from "../models/index.js";
 import { getUserId } from "../services/getUserId.js";
 
-export const createTask = async (req, res) => {
+export const createTask = async (req, res, next) => {
+  const userId = getUserId(req).userId;
   try {
     const { title, description, priority, dueDate, status } = req.body;
 
     if (!title || !priority || !dueDate) {
-      return res
-        .status(400)
-        .json({ message: "Title, priority, and dueDate are required." });
+      const err = new Error("Title, priority, and dueDate are required.");
+      err.StatusCode = 400;
+      throw err;
     }
 
     const task = await Task.create({
@@ -19,16 +19,17 @@ export const createTask = async (req, res) => {
       priority,
       dueDate,
       status,
-      userId: req.user.id
+      userId
     });
 
     res.status(201).json({ message: "Task created", task });
   } catch (err) {
-    res.status(500).json({ message: "Server error", error: err.message });
+    next(err);
   }
 };
 
-export const getTasks = async (req, res) => {
+export const getTasks = async (req, res, next) => {
+  const userId = getUserId(req).userId;
   try {
     const {
       title,
@@ -39,8 +40,6 @@ export const getTasks = async (req, res) => {
       sortBy = "dueDate",
       order = "DESC"
     } = req.query;
-
-    const userId = getUserId(req).userId;
 
     const where = { userId };
 
@@ -67,60 +66,69 @@ export const getTasks = async (req, res) => {
       order: [[sortBy, order.toUpperCase()]]
     });
 
+    if (!tasks.length) {
+      const err = new Error("No task found");
+      err.StatusCode = 404;
+      throw err;
+    }
+
     console.log("Fetched Tasks: ", tasks);
     console.log("filters: ", where);
 
     res.status(200).json(tasks);
   } catch (error) {
-    console.error("Error fetching tasks:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    next(error);
   }
 };
 
-export const getTaskById = async (req, res) => {
+export const getTaskById = async (req, res, next) => {
+  const userId = getUserId(req).userId;
   try {
     const task = await Task.findOne({
-      where: { id: req.params.id, userId: req.query.userId }
+      where: { id: req.params.id, userId }
     });
     if (!task) {
-      return res.status(404).json({
-        message: "Task not found"
-      });
+      const err = new Error("Task not found");
+      err.StatusCode = 404;
+      throw err;
     }
 
     res.status(200).json(task);
-  } catch (error) {}
+  } catch (error) {
+    next(error)
+  }
 };
 
-export const updateTask = async (req, res) => {
+export const updateTask = async (req, res, next) => {
+  const userId = getUserId(req).userId;
   const { title, description, priority, dueDate, status } = req.body;
   try {
-    console.log("TaskID: ", req.params.id, "UserID: ", req.query.userId);
+    console.log("TaskID: ", req.params.id, "UserID: ", userId);
     const task = await Task.findOne({
-      where: { id: req.params.id, userId: req.query.userId }
+      where: { id: req.params.id, userId }
     });
     if (!task) {
-      return res.status(404).json({
-        message: "Task not found"
-      });
+      const err = new Error("Task not found")
+      err.StatusCode = 404
+      throw err
     }
 
     const newTask = {
-      title: title || task.title,
-      description: description || task.description,
-      priority: priority || task.priority,
-      dueDate: dueDate || task.dueDate,
-      status: status || task.status
+      title: title ?? task.title,
+      description: description ?? task.description,
+      priority: priority ?? task.priority,
+      dueDate: dueDate ?? task.dueDate,
+      status: status ?? task.status
     };
 
     const isUpdated = await Task.update(newTask, {
-      where: { id: req.params.id, userId: req.query.userId }
+      where: { id: req.params.id, userId }
     });
     console.log("IsUpdated: ", isUpdated);
     if (!isUpdated[0]) {
-      return res.status(500).json({
-        message: "Unable to update the task"
-      });
+      const err = new Error("Unable to update the task")
+      err.statusCode = 500
+      throw err
     }
 
     res.status(200).json({
@@ -128,38 +136,41 @@ export const updateTask = async (req, res) => {
       task: newTask
     });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    next(error)
   }
 };
 
-export const deleteTask = async (req, res) => {
+export const deleteTask = async (req, res, next) => {
+  const userId = getUserId(req).userId;
   try {
     const task = await Task.findOne({
       where: {
         id: req.params.id,
-        userId: req.query.userId
+        userId
       }
     });
     if (!task) {
-      res.status(404).json({
-        message: "Task not found"
-      });
+      const err = new Error("Task not found")
+      err.statusCode = 404
+      throw err
     }
 
     const isDeleted = await Task.destroy({
       where: {
         id: req.params.id,
-        userId: req.query.userId
+        userId
       }
     });
 
     if (!isDeleted) {
-      return res.status(500).json({
-        message: "Unable to delete the task"
-      });
+      const err = new Error("Unable to delete the task")
+      err.statusCode = 500
+      throw err
     }
     res.status(200).json({
       message: "Task successfully deleted"
     });
-  } catch (error) {}
+  } catch (error) {
+    next(error)
+  }
 };
