@@ -2,24 +2,28 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { User } from "../models/index.js";
 import { JWT_SECRET } from "../index.js";
-import { getUserId } from "../services/getUserId.js";
+import { getUserId } from "../services/getUserId.js"; // this function extracts info from JWT token through request headers
+// Controllers for user signup, login, logout, update profile and get profile
+
 
 export const signup = async (req, res, next) => {
-  const { username, email, password } = req.body;
-  if (!username || !email || !password) {
+  const { username, email, password } = req.body; // extract user details from body
+
+  if (!username || !email || !password) { // if any field is missing
     const err = new Error("All fields are required.");
     err.statusCode = 400
     throw err
   }
   try {
-    const existingUser = await User.findOne({ where: { email } });
+    const existingUser = await User.findOne({ where: { email } }); // check if the email already exists
     if (existingUser) {
       const err = new Error("Email already in use.");
       err.statusCode = 400
       throw err
     }
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const user = await User.create({
+    const hashedPassword = await bcrypt.hash(password, 10); // hash the password
+
+    const user = await User.create({ // create the user
       username,
       email,
       password: hashedPassword
@@ -30,23 +34,23 @@ export const signup = async (req, res, next) => {
       user: { id: user.id, username: user.username, email: user.email }
     });
   } catch (err) {
-    next(err)
+    next(err) // pass the error to error handling middleware
   }
 };
 
 export const login = async (req, res, next) => {
   const { email, password } = req.body;
 
-  if (!email || !password) {
+  if (!email || !password) { // if any field is missing thow error
     const err = new Error("All fields are required")
     err.statusCode = 400
     throw err
   }
 
   try {
-    const user = await User.findOne({ where: { email } });
+    const user = await User.findOne({ where: { email } }); // get the user details from DB
 
-    if (!user) {
+    if (!user) { // throw error if no user found
       const err = new Error("Invalid email")
       err.statusCode = 401
       throw err
@@ -55,14 +59,14 @@ export const login = async (req, res, next) => {
     // Compare password to check if it matches
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
-    if (!isPasswordValid) {
+    if (!isPasswordValid) { // throw error invalid password
       const err = new Error("Invalid password")
       err.statusCode = 401
       throw err
     }
 
     // generate JWT token
-    const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: "1h" });
+    const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: "1h" }); // token valid for 1 hour
 
     return res.status(200).json({
       message: "login successfull",
@@ -71,7 +75,7 @@ export const login = async (req, res, next) => {
         username: user.username,
         email: user.email
       },
-      token
+      token // sharing token with user in response
     });
   } catch (err) {
     next(err)
@@ -85,6 +89,7 @@ export const logout = (req, res) => {
 export const updateProfile = async (req, res, next) => {
   const { username, email, password } = req.body;
   const userId = getUserId(req).userId;
+
   try {
     // get the user details
     const user = await User.findOne({
@@ -92,15 +97,15 @@ export const updateProfile = async (req, res, next) => {
         id: userId
       }
     });
-    if (!user) {
+    if (!user) { // throw error user not found
       const err = new Error("User details not found")
       err.statusCode = 404
       throw err
     }
 
-    // hashed password
-    const hashedPass = bcrypt.hash(password, 10);
-    // updated user details
+    const hashedPass = bcrypt.hash(password, 10); // hash the password
+
+    // user details object with updated details
     const updatedUser = {
       username: username ?? user.username,
       email: email ?? user.email,
@@ -131,8 +136,9 @@ export const updateProfile = async (req, res, next) => {
 
 export const getProfile = async (req, res, next) => {
   const userId = getUserId(req).userId;
+
   try {
-    const user = await User.findOne({
+    const user = await User.findOne({ // get the user details from DB
       where: {
         id: userId
       }

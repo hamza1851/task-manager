@@ -1,18 +1,22 @@
 import { Op } from "sequelize";
 import { Task } from "../models/index.js";
 import { getUserId } from "../services/getUserId.js";
+// All controllers for task CRUD
 
+
+// creating the task
 export const createTask = async (req, res, next) => {
   const userId = getUserId(req).userId;
   try {
-    const { title, description, priority, dueDate, status } = req.body;
+    const { title, description, priority, dueDate, status } = req.body; // extract all info form body
 
-    if (!title || !priority || !dueDate) {
+    if (!title || !priority || !dueDate) { // throw error if required fields are missing
       const err = new Error("Title, priority, and dueDate are required.");
       err.StatusCode = 400;
       throw err;
     }
 
+    // updated task object
     const task = await Task.create({
       title,
       description,
@@ -22,14 +26,18 @@ export const createTask = async (req, res, next) => {
       userId
     });
 
+    //success response
     res.status(201).json({ message: "Task created", task });
   } catch (err) {
-    next(err);
+    next(err); // pass the error to error handling middleware
   }
 };
 
+
+// fetching all tasks with filters and sorting
 export const getTasks = async (req, res, next) => {
   const userId = getUserId(req).userId;
+
   try {
     const {
       title,
@@ -39,8 +47,10 @@ export const getTasks = async (req, res, next) => {
       endDate,
       sortBy = "dueDate",
       order = "DESC"
-    } = req.query;
+    } = req.query; // extract filters
 
+
+    //construct the where clause
     const where = { userId };
 
     if (status) {
@@ -61,12 +71,13 @@ export const getTasks = async (req, res, next) => {
       };
     }
 
+    // fetch tasks
     const tasks = await Task.findAll({
       where,
       order: [[sortBy, order.toUpperCase()]]
     });
 
-    if (!tasks.length) {
+    if (!tasks.length) { // if no task found
       const err = new Error("No task found");
       err.StatusCode = 404;
       throw err;
@@ -77,17 +88,18 @@ export const getTasks = async (req, res, next) => {
 
     res.status(200).json(tasks);
   } catch (error) {
-    next(error);
+    next(error); // pass the error to error middleware
   }
 };
 
+// api for getting task by id
 export const getTaskById = async (req, res, next) => {
   const userId = getUserId(req).userId;
   try {
     const task = await Task.findOne({
       where: { id: req.params.id, userId }
     });
-    if (!task) {
+    if (!task) { // if no task then contruct the err and throw
       const err = new Error("Task not found");
       err.StatusCode = 404;
       throw err;
@@ -95,12 +107,14 @@ export const getTaskById = async (req, res, next) => {
 
     res.status(200).json(task);
   } catch (error) {
-    next(error)
+    next(error); // pass the error to error middleware
   }
 };
 
 export const updateTask = async (req, res, next) => {
   const userId = getUserId(req).userId;
+
+  // extract the fields from body
   const { title, description, priority, dueDate, status } = req.body;
   try {
     console.log("TaskID: ", req.params.id, "UserID: ", userId);
@@ -113,6 +127,7 @@ export const updateTask = async (req, res, next) => {
       throw err
     }
 
+    // contruct new task object for updation
     const newTask = {
       title: title ?? task.title,
       description: description ?? task.description,
@@ -121,14 +136,16 @@ export const updateTask = async (req, res, next) => {
       status: status ?? task.status
     };
 
-    const isUpdated = await Task.update(newTask, {
+    const isUpdated = await Task.update(newTask, { // returns [affectedCount]
       where: { id: req.params.id, userId }
     });
+
     console.log("IsUpdated: ", isUpdated);
+
     if (!isUpdated[0]) {
       const err = new Error("Unable to update the task")
       err.statusCode = 500
-      throw err
+      throw err // throw error for error handling middleware
     }
 
     res.status(200).json({
@@ -136,10 +153,11 @@ export const updateTask = async (req, res, next) => {
       task: newTask
     });
   } catch (error) {
-    next(error)
+    next(error) 
   }
 };
 
+// API for deleting the task
 export const deleteTask = async (req, res, next) => {
   const userId = getUserId(req).userId;
   try {
@@ -149,13 +167,13 @@ export const deleteTask = async (req, res, next) => {
         userId
       }
     });
-    if (!task) {
+    if (!task) { // if no task for id and userId
       const err = new Error("Task not found")
       err.statusCode = 404
       throw err
     }
 
-    const isDeleted = await Task.destroy({
+    const isDeleted = await Task.destroy({ // return number of rows deleted
       where: {
         id: req.params.id,
         userId

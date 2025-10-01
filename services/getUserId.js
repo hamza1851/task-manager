@@ -10,14 +10,15 @@ export const getUserId = (req) => {
     token: null,
     status: null
   };
-  const authHeader = req.headers["authorization"];
+
+  const authHeader = req.headers["authorization"]; // get the authorization header
   if (!authHeader) {
     result.status = 401;
     result.error = "Authorization header missing";
     return result;
   }
 
-  const token = authHeader.split(" ")[1];
+  const token = authHeader.split(" ")[1]; // extract the token from "Bearer <token>"
   if (!token) {
     result.status = 401;
     result.error = "Token missing";

@@ -11,7 +11,7 @@ const User = sequelize.define(
   },
   {
     timestamps: true,
-    createdAt: "created_at",
+    createdAt: "created_at", // sequelize uses camelCase by default, so snake_case needs to be specified
     updatedAt: "updated_at",
     validate: {} // removing all validations
   }
