@@ -1,7 +1,8 @@
 import { DataTypes } from "sequelize";
-import sequelize from "../config/db.js";
+import db from "../connections/sequelize/mySql.connection.js";
 
-const Task = sequelize.define(
+
+const Task = db.sequelize.define(
   "tasks",
   {
     id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },

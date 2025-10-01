@@ -1,14 +1,15 @@
-import { getUserId } from "../services/getUserId.js";
+import { getUserId } from "../utils/getUserId.js";
+import logger from "../utils/logger.js";
 
 export const authenticate = (req, res, next) => {
   // getUserId will return an object with userId, error, token and status
   const result = getUserId(req);
 
   if (result.error) {
+    logger.error("Authentication error: ", result.error)
     const err = new Error(result.error);
     err.statusCode = result.status;
     throw err;
-    // return res.status(result.status).json({ message: result.error });
   }
 
   try {
@@ -16,6 +17,5 @@ export const authenticate = (req, res, next) => {
     next();
   } catch (err) {
     next(err);
-    // return res.status(403).json({ message: "Invalid or expired token" });
   }
 };
